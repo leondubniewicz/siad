@@ -1,0 +1,505 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "id": "initial_id",
+   "metadata": {
+    "collapsed": true,
+    "ExecuteTime": {
+     "end_time": "2025-11-19T11:11:47.040581Z",
+     "start_time": "2025-11-19T11:11:43.041520Z"
+    }
+   },
+   "source": [
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "from sklearn.preprocessing import OrdinalEncoder,MinMaxScaler,StandardScaler\n",
+    "from sklearn.compose import ColumnTransformer\n",
+    "from sklearn.impute import SimpleImputer\n",
+    "from sklearn.model_selection import StratifiedKFold,cross_val_score\n",
+    "from sklearn.pipeline import Pipeline\n",
+    "from sklearn.decomposition import PCA\n",
+    "from sklearn.ensemble import RandomForestClassifier\n",
+    "import matplotlib.pyplot as plt"
+   ],
+   "outputs": [],
+   "execution_count": 13
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2025-11-19T10:54:55.082587Z",
+     "start_time": "2025-11-19T10:54:55.068062Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "data = pd.read_csv('heart_disease_uci.csv', sep=',')\n",
+    "data = data.drop(columns='id')\n",
+    "y = data['num']\n",
+    "X = data.drop(columns='num')\n",
+    "data"
+   ],
+   "id": "acb45545da1e16b2",
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "     age     sex        dataset               cp  trestbps   chol    fbs  \\\n",
+       "0     63    Male      Cleveland   typical angina     145.0  233.0   True   \n",
+       "1     67    Male      Cleveland     asymptomatic     160.0  286.0  False   \n",
+       "2     67    Male      Cleveland     asymptomatic     120.0  229.0  False   \n",
+       "3     37    Male      Cleveland      non-anginal     130.0  250.0  False   \n",
+       "4     41  Female      Cleveland  atypical angina     130.0  204.0  False   \n",
+       "..   ...     ...            ...              ...       ...    ...    ...   \n",
+       "915   54  Female  VA Long Beach     asymptomatic     127.0  333.0   True   \n",
+       "916   62    Male  VA Long Beach   typical angina       NaN  139.0  False   \n",
+       "917   55    Male  VA Long Beach     asymptomatic     122.0  223.0   True   \n",
+       "918   58    Male  VA Long Beach     asymptomatic       NaN  385.0   True   \n",
+       "919   62    Male  VA Long Beach  atypical angina     120.0  254.0  False   \n",
+       "\n",
+       "              restecg  thalch  exang  oldpeak        slope   ca  \\\n",
+       "0      lv hypertrophy   150.0  False      2.3  downsloping  0.0   \n",
+       "1      lv hypertrophy   108.0   True      1.5         flat  3.0   \n",
+       "2      lv hypertrophy   129.0   True      2.6         flat  2.0   \n",
+       "3              normal   187.0  False      3.5  downsloping  0.0   \n",
+       "4      lv hypertrophy   172.0  False      1.4    upsloping  0.0   \n",
+       "..                ...     ...    ...      ...          ...  ...   \n",
+       "915  st-t abnormality   154.0  False      0.0          NaN  NaN   \n",
+       "916  st-t abnormality     NaN    NaN      NaN          NaN  NaN   \n",
+       "917  st-t abnormality   100.0  False      0.0          NaN  NaN   \n",
+       "918    lv hypertrophy     NaN    NaN      NaN          NaN  NaN   \n",
+       "919    lv hypertrophy    93.0   True      0.0          NaN  NaN   \n",
+       "\n",
+       "                  thal  num  \n",
+       "0         fixed defect    0  \n",
+       "1               normal    2  \n",
+       "2    reversable defect    1  \n",
+       "3               normal    0  \n",
+       "4               normal    0  \n",
+       "..                 ...  ...  \n",
+       "915                NaN    1  \n",
+       "916                NaN    0  \n",
+       "917       fixed defect    2  \n",
+       "918                NaN    0  \n",
+       "919                NaN    1  \n",
+       "\n",
+       "[920 rows x 15 columns]"
+      ],
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>age</th>\n",
+       "      <th>sex</th>\n",
+       "      <th>dataset</th>\n",
+       "      <th>cp</th>\n",
+       "      <th>trestbps</th>\n",
+       "      <th>chol</th>\n",
+       "      <th>fbs</th>\n",
+       "      <th>restecg</th>\n",
+       "      <th>thalch</th>\n",
+       "      <th>exang</th>\n",
+       "      <th>oldpeak</th>\n",
+       "      <th>slope</th>\n",
+       "      <th>ca</th>\n",
+       "      <th>thal</th>\n",
+       "      <th>num</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>63</td>\n",
+       "      <td>Male</td>\n",
+       "      <td>Cleveland</td>\n",
+       "      <td>typical angina</td>\n",
+       "      <td>145.0</td>\n",
+       "      <td>233.0</td>\n",
+       "      <td>True</td>\n",
+       "      <td>lv hypertrophy</td>\n",
+       "      <td>150.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>2.3</td>\n",
+       "      <td>downsloping</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>fixed defect</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>67</td>\n",
+       "      <td>Male</td>\n",
+       "      <td>Cleveland</td>\n",
+       "      <td>asymptomatic</td>\n",
+       "      <td>160.0</td>\n",
+       "      <td>286.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>lv hypertrophy</td>\n",
+       "      <td>108.0</td>\n",
+       "      <td>True</td>\n",
+       "      <td>1.5</td>\n",
+       "      <td>flat</td>\n",
+       "      <td>3.0</td>\n",
+       "      <td>normal</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>67</td>\n",
+       "      <td>Male</td>\n",
+       "      <td>Cleveland</td>\n",
+       "      <td>asymptomatic</td>\n",
+       "      <td>120.0</td>\n",
+       "      <td>229.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>lv hypertrophy</td>\n",
+       "      <td>129.0</td>\n",
+       "      <td>True</td>\n",
+       "      <td>2.6</td>\n",
+       "      <td>flat</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>reversable defect</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>37</td>\n",
+       "      <td>Male</td>\n",
+       "      <td>Cleveland</td>\n",
+       "      <td>non-anginal</td>\n",
+       "      <td>130.0</td>\n",
+       "      <td>250.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>normal</td>\n",
+       "      <td>187.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>3.5</td>\n",
+       "      <td>downsloping</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>normal</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>41</td>\n",
+       "      <td>Female</td>\n",
+       "      <td>Cleveland</td>\n",
+       "      <td>atypical angina</td>\n",
+       "      <td>130.0</td>\n",
+       "      <td>204.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>lv hypertrophy</td>\n",
+       "      <td>172.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>1.4</td>\n",
+       "      <td>upsloping</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>normal</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>915</th>\n",
+       "      <td>54</td>\n",
+       "      <td>Female</td>\n",
+       "      <td>VA Long Beach</td>\n",
+       "      <td>asymptomatic</td>\n",
+       "      <td>127.0</td>\n",
+       "      <td>333.0</td>\n",
+       "      <td>True</td>\n",
+       "      <td>st-t abnormality</td>\n",
+       "      <td>154.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>916</th>\n",
+       "      <td>62</td>\n",
+       "      <td>Male</td>\n",
+       "      <td>VA Long Beach</td>\n",
+       "      <td>typical angina</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>139.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>st-t abnormality</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>917</th>\n",
+       "      <td>55</td>\n",
+       "      <td>Male</td>\n",
+       "      <td>VA Long Beach</td>\n",
+       "      <td>asymptomatic</td>\n",
+       "      <td>122.0</td>\n",
+       "      <td>223.0</td>\n",
+       "      <td>True</td>\n",
+       "      <td>st-t abnormality</td>\n",
+       "      <td>100.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>fixed defect</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>918</th>\n",
+       "      <td>58</td>\n",
+       "      <td>Male</td>\n",
+       "      <td>VA Long Beach</td>\n",
+       "      <td>asymptomatic</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>385.0</td>\n",
+       "      <td>True</td>\n",
+       "      <td>lv hypertrophy</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>919</th>\n",
+       "      <td>62</td>\n",
+       "      <td>Male</td>\n",
+       "      <td>VA Long Beach</td>\n",
+       "      <td>atypical angina</td>\n",
+       "      <td>120.0</td>\n",
+       "      <td>254.0</td>\n",
+       "      <td>False</td>\n",
+       "      <td>lv hypertrophy</td>\n",
+       "      <td>93.0</td>\n",
+       "      <td>True</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>920 rows × 15 columns</p>\n",
+       "</div>"
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "execution_count": 6
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2025-11-19T10:54:55.138946Z",
+     "start_time": "2025-11-19T10:54:55.132690Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "transformer = ColumnTransformer(transformers=[('encoder', OrdinalEncoder(), ('sex','dataset','cp','restecg','slope','thal'))], remainder='passthrough')\n",
+    "\n",
+    "X_enc = transformer.fit_transform(X)\n",
+    "X_enc"
+   ],
+   "id": "c3caedf9a9164874",
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "array([[1.0, 0.0, 3.0, ..., False, 2.3, 0.0],\n",
+       "       [1.0, 0.0, 0.0, ..., True, 1.5, 3.0],\n",
+       "       [1.0, 0.0, 0.0, ..., True, 2.6, 2.0],\n",
+       "       ...,\n",
+       "       [1.0, 3.0, 0.0, ..., False, 0.0, nan],\n",
+       "       [1.0, 3.0, 0.0, ..., nan, nan, nan],\n",
+       "       [1.0, 3.0, 1.0, ..., True, 0.0, nan]],\n",
+       "      shape=(920, 14), dtype=object)"
+      ]
+     },
+     "execution_count": 7,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "execution_count": 7
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2025-11-19T10:54:55.264930Z",
+     "start_time": "2025-11-19T10:54:55.261168Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "imp = SimpleImputer(missing_values=np.nan, strategy='mean')\n",
+    "X_imp = imp.fit_transform(X_enc)\n",
+    "X_imp"
+   ],
+   "id": "3c73f477bddb9651",
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "array([[1.        , 0.        , 3.        , ..., 0.        , 2.3       ,\n",
+       "        0.        ],\n",
+       "       [1.        , 0.        , 0.        , ..., 1.        , 1.5       ,\n",
+       "        3.        ],\n",
+       "       [1.        , 0.        , 0.        , ..., 1.        , 2.6       ,\n",
+       "        2.        ],\n",
+       "       ...,\n",
+       "       [1.        , 3.        , 0.        , ..., 0.        , 0.        ,\n",
+       "        0.6763754 ],\n",
+       "       [1.        , 3.        , 0.        , ..., 0.38959538, 0.87878788,\n",
+       "        0.6763754 ],\n",
+       "       [1.        , 3.        , 1.        , ..., 1.        , 0.        ,\n",
+       "        0.6763754 ]], shape=(920, 14))"
+      ]
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "execution_count": 8
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2025-11-19T11:09:03.379236Z",
+     "start_time": "2025-11-19T11:08:51.398620Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "n = [50,75,100,125,150,200,250,300,350]\n",
+    "\n",
+    "results = {}\n",
+    "\n",
+    "for i in n:\n",
+    "    forest = RandomForestClassifier(n_estimators=i,random_state=0)\n",
+    "    result = cross_val_score(forest, X_enc, y, cv=10).mean()\n",
+    "    results[i] = result\n",
+    "\n",
+    "print(results)"
+   ],
+   "id": "a62f83ad73c430da",
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{50: np.float64(0.5043478260869565), 75: np.float64(0.5076086956521739), 100: np.float64(0.5184782608695653), 125: np.float64(0.5141304347826087), 150: np.float64(0.5065217391304347), 200: np.float64(0.5043478260869565), 250: np.float64(0.5021739130434784), 300: np.float64(0.5065217391304347), 350: np.float64(0.5021739130434782)}\n"
+     ]
+    }
+   ],
+   "execution_count": 12
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2025-11-19T11:19:22.594745Z",
+     "start_time": "2025-11-19T11:19:22.552085Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "fig,ax = plt.subplots()\n",
+    "ax.bar(results.keys(),results.values(),width=20)\n",
+    "ax.set(ylim=(0.48,0.54))\n",
+    "plt.show()"
+   ],
+   "id": "bc44eb676d7a97fc",
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<Figure size 640x480 with 1 Axes>"
+      ],
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAAiwAAAGiCAYAAADEJZ3cAAAAOnRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjEwLjcsIGh0dHBzOi8vbWF0cGxvdGxpYi5vcmcvTLEjVAAAAAlwSFlzAAAPYQAAD2EBqD+naQAAI2RJREFUeJzt3QuwVdV9P/Df5e0jIIoCEgQNCYpGICCIjTFWRnQyEfsKSTNCaCRjWk0s0QY6FRTboiFDSCqj1EpJxoxSOxqsNjQRNdWCEiGMlEYrqbyUZ+QhGMHA6az1/9/be+Ve5OBree7nM7M87LMfd+/lPvd879pr7V1XqVQqAQBQsDbv9w4AALwVgQUAKJ7AAgAUT2ABAIonsAAAxRNYAIDiCSwAQPEEFgCgeAILAFA8gQUAqM3AMnv27Ojbt2906tQphg8fHkuXLm1x2Xnz5kVdXV2TktZryVVXXZWXmTVr1pHsGgBQg6oOLPPnz4+JEyfG1KlTY/ny5TFw4MAYNWpUbNmypcV1OnfuHBs3bmwoa9eubXa5Bx54IJ566qk4+eSTq90tAKCGVR1YZs6cGRMmTIjx48fHgAED4o477oijjz465s6d2+I6qcWkR48eDaV79+4HLfPSSy/FNddcEz/84Q+jffv21R8JAFCz2lWz8L59+2LZsmUxefLkhvfatGkTI0eOjCVLlrS43u7du6NPnz5x4MCB+MQnPhF/+7d/G2eeeWbD/PT+FVdcEddff32T91uyd+/eXBqv/8orr8QJJ5yQwxEAUL5KpRKvvvpqvrKS8sQ7Fli2bdsW+/fvP6iFJE0/99xzza7Tv3//3Ppy9tlnx86dO+Pb3/52nHfeebFq1ar48Ic/nJe59dZbo127dvG1r33tsPZj+vTpcdNNN1Wz6wBAodavX9+QCd6RwHIkRowYkUu9FFbOOOOMmDNnTtx88825xea73/1u7g9zuK0jqYUn9aOpl4LQKaeckg849ZcBAMq3a9eu6N27d3zoQx96y2WrCizdunWLtm3bxubNm5u8n6ZT35TDkfqnDB48OFavXp2nn3jiidxhNwWOeqkV5xvf+EYeKbRmzZqDttGxY8dc3iyFFYEFAD5YDqfBoqpOtx06dIghQ4bEokWLmvQfSdONW1EOJYWRlStXRs+ePfN06rvy7LPPxooVKxpKupaV+rP827/9WzW7BwDUqKovCaVLMePGjYuhQ4fGsGHDcivInj178qihZOzYsdGrV6/czySZNm1anHvuudGvX7/YsWNHzJgxIw9rvvLKK/P81FE2lTe3wqQWm9T/BQCg6sAyZsyY2Lp1a0yZMiU2bdoUgwYNioULFzZ0xF23bl2Tnr7bt2/Pw6DTsl27ds0tNIsXL85DogEADkddJY0pqoFOO126dMmdb/VhAYDa+/72LCEAoHgCCwBQPIEFACiewAIAFE9gAQCKJ7AAAMUTWACA4gksAEDxBBYAoHgCCwBQPIEFACiewAIAFE9gAQCKJ7AAAMUTWACA4gksAEDxBBYAoHgCCwBQPIEFACiewAIAFE9gAQCKJ7AAAMUTWACA4gksAEDxBBYAoHgCCwBQPIEFACiewAIAFE9gAQCKJ7AAAMUTWACA4gksAEDxBBYAoHgCCwBQPIEFACiewAIAFE9gAQCKJ7AAAMUTWACA4gksAEDxBBYAoHgCCwBQPIEFACiewAIAFE9gAQCKJ7AAAMUTWACA4gksAEDxBBYAoHgCCwBQPIEFAKjNwDJ79uzo27dvdOrUKYYPHx5Lly5tcdl58+ZFXV1dk5LWa+zGG2+M008/PY455pjo2rVrjBw5Mp5++ukj2TUAoAZVHVjmz58fEydOjKlTp8by5ctj4MCBMWrUqNiyZUuL63Tu3Dk2btzYUNauXdtk/sc+9rG47bbbYuXKlfHkk0/mMHTxxRfH1q1bj+yoAICaUlepVCrVrJBaVM4555wcMJIDBw5E796945prrolJkyY128Jy7bXXxo4dOw77Z+zatSu6dOkSjzzySFx00UUHzd+7d28ujZdP+7Bz584cjgCA8tV/3x/O93dVLSz79u2LZcuW5Us2DRto0yZPL1mypMX1du/eHX369MmhYvTo0bFq1apD/oy///u/zweQWm+aM3369Dy/vqTtAgC1q6rAsm3btti/f3907969yftpetOmTc2u079//5g7d24sWLAg7r777twic95558WGDRuaLPfQQw/Fsccem/u3fOc734mf/vSn0a1bt2a3OXny5JzG6sv69eurOQwA4AOm3bv9A0aMGJFLvRRWzjjjjJgzZ07cfPPNDe9feOGFsWLFihyK7rzzzvjc5z6XO96edNJJB22zY8eOuQAArUNVLSypxaNt27axefPmJu+n6R49ehzWNtq3bx+DBw+O1atXN3k/jRDq169fnHvuuXHXXXdFu3bt8isAQFWBpUOHDjFkyJBYtGhRw3vpEk+abtyKcijpklIaDdSzZ89DLpe227hjLQDQelV9SSgNaR43blwMHTo0hg0bFrNmzYo9e/bE+PHj8/yxY8dGr169csfYZNq0abnVJLWepJFCM2bMyMOar7zyyjw/rfs3f/M3cdlll+UQky4Jpfu8vPTSS/FHf/RH7/TxAgCtIbCMGTMm3x9lypQpuaPtoEGDYuHChQ0dcdetW5dHDtXbvn17TJgwIS+bbgqXWmgWL14cAwYMyPPTJabnnnsuvv/97+ewcsIJJ+Rh00888USceeaZ7+SxAgCt5T4sH/Rx3ABAjd+HBQDg/SCwAADFE1gAgOIJLABA8QQWAKB4AgsAUDyBBQAonsACABRPYAEAiiewAADFE1gAgOIJLABA8QQWAKB4AgsAUDyBBQAonsACABRPYAEAiiewAADFE1gAgOIJLABA8QQWAKB4AgsAUDyBBQAonsACABRPYAEAiiewAADFE1gAgOIJLABA8QQWAKB4AgsAUDyBBQAonsACABRPYAEAiiewAADFE1gAgOIJLABA8QQWAKB4AgsAUDyBBQAonsACABRPYAEAiiewAADFE1gAgOIJLABA8QQWAKB4AgsAUDyBBQAonsACABRPYAEAiiewAAC1GVhmz54dffv2jU6dOsXw4cNj6dKlLS47b968qKura1LSevXeeOON+OY3vxkf//jH45hjjomTTz45xo4dGy+//PKRHREAUHOqDizz58+PiRMnxtSpU2P58uUxcODAGDVqVGzZsqXFdTp37hwbN25sKGvXrm2Y99prr+Xt3HDDDfn1/vvvj+effz4uu+yyIz8qAKCm1FUqlUo1K6QWlXPOOSduu+22PH3gwIHo3bt3XHPNNTFp0qRmW1iuvfba2LFjx2H/jJ///OcxbNiwHGxOOeWUt1x+165d0aVLl9i5c2cORwBA+ar5/q6qhWXfvn2xbNmyGDly5P9toE2bPL1kyZIW19u9e3f06dMnB5vRo0fHqlWrDvlz0o6nS0fHHXdcs/P37t2bD7JxAQBqV1WBZdu2bbF///7o3r17k/fT9KZNm5pdp3///jF37txYsGBB3H333blF5rzzzosNGzY0u/zrr7+e+7R84QtfaDFtTZ8+PSey+pKCEABQu971UUIj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mT17dvTt2zc6deoUw4cPj6VLlx7Wevfee2/U1dXF5Zdf3uT93bt3x9VXXx0f/vCH46ijjooBAwbEHXfccSS7BgDUoKoDy/z582PixIkxderUWL58eQwcODBGjRoVW7ZsOeR6a9asieuuuy7OP//8g+al7S1cuDDuvvvu+OUvfxnXXnttDjAPPvhgtbsHANSgdtWuMHPmzJgwYUKMHz8+T6eWkIcffjjmzp0bkyZNanad/fv3xxe/+MW46aab4oknnogdO3Y0mb948eIYN25cfPrTn87TX/nKV2LOnDm55eayyy47aHt79+7Npd7OnTvz665du+LdcGDva/FeOtRxtOZ9KW1/Pij7UpLSzpmSOGfUS2s8Z3b9/21WKpW3XrhShb1791batm1beeCBB5q8P3bs2Mpll13W4npTpkypXH755fnf48aNq4wePbrJ/AkTJlSGDh1a2bBhQ+XAgQOVRx99tHLsscdWfvaznzW7valTp6YjU9SBc8A54BxwDjgH4oNfB+vXr3/LDFJVC8u2bdtya0n37t2bvJ+mn3vuuWbXefLJJ+Ouu+6KFStWtLjdv/u7v8utKqkPS7t27aJNmzZx5513xqc+9alml588eXK+jFTvwIED8corr8QJJ5yQ+8iUIKXG3r17x/r166Nz587v9+4URd2oF+eLz5LfMX7/1resvPrqq3HyySfHO35JqBppJ6644oocPrp163bIwPLUU0/lPit9+vSJf//3f48/+7M/ywcwcuTIg5bv2LFjLo0dd9xxUaIUVgQWdeOc8Vnye8bv35J0Lui7qUuXLoe1XFWBJYWOtm3bxubNm5u8n6Z79Ohx0PK/+tWvcmfbz372s01aQ/IPbtcunn/++RxK/vIv/zIeeOCB+MxnPpPnnX322blF5tvf/nazgQUAaF2qGiXUoUOHGDJkSCxatKhJAEnTI0aMOGj5008/PVauXJnDR31JnWgvvPDC/O90yeSNN97IJV0GaiwFo/pwAwC0blVfEkp9R9KInqFDh8awYcNi1qxZsWfPnoZRQ2PHjo1evXrF9OnT831azjrrrGYv3dS/n0LQBRdcENdff32+B0u6JPSzn/0sfvCDH+QRSR9U6ZJVGvr95ktXqBvnjM+S3zN+/75fOn6Av5vqUs/bale67bbbYsaMGbFp06YYNGhQfO9738s3kEvS0OR0U7l58+Y1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"
+     },
+     "metadata": {},
+     "output_type": "display_data",
+     "jetTransient": {
+      "display_id": null
+     }
+    }
+   ],
+   "execution_count": 28
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": "",
+   "id": "6ee7b741c9c88476"
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 2
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython2",
+   "version": "2.7.6"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
